@@ -1,0 +1,32 @@
+# 全局ID配置
+ids:
+  boot: "742654932"
+  root:
+    - 2172959822
+
+# API服务提供商配置
+providers:
+  gemini:
+    model_name: "gemini-2.5-pro"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    api_key: "YOUR_API_KEY"
+
+  deepseek:
+    model_names: "deepseek-chat"
+    base_url: "https://api.deepseek.com"
+    api_key: "YOUR_API_KEY"
+  
+  novelai:
+    api_key: "YOUR_API_KEY"
+#群配置字典
+groups:
+  939506743:
+    name: "新月杀阳间军八"
+    chat_prompt: "prompt/chatprompt/maoliang.md"
+    知识库: "prompt/xingyuesha.md"
+    image_prompt: "prompt/imageprompt/text-to-image.md"
+  1016770226:
+    name: "测试群"
+    chat_prompt: "prompt/chatprompt/maoniang.md"
+    知识库: "prompt/xingyuesha.md"
+    image_prompt: "prompt/imageprompt/text-to-image-nsfw.md"
