@@ -5,11 +5,11 @@ import json
 from base import ChatMessage
 from typing import Dict, List, Union
 from .ai_services.openAI_llm import OpenAI_LLM
-from group_context import GroupContext
+from .group_context import GroupContext
 from utilities.logging import logger
 from utilities.json_parser import parse_llm_json_to_message_array,buildTextToImagePrompt
 from utilities.embedding_search import RAGSearchEnhancer
-from nai_image.character_reference_image import get_character_reference_image
+from .nai_image.character_reference_image import get_character_reference_image
 from pathlib import Path
 from ncatbot.core import GroupMessageEvent,BotClient
 from pypinyin import pinyin, Style
@@ -135,6 +135,7 @@ class AICommandHandler:
             self.groupcontext.userMessageIdContentMap.clear()
         
     async def handle_group_message_response(self,msg:GroupMessageEvent)->bool:
+        """ai智能水群"""
         if not self.groupcontext.ai_mode_active:
             return False
         if not checkMentionBehavior(msg=msg):

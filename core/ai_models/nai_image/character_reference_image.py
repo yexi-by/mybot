@@ -5,9 +5,9 @@ import io
 import asyncio
 import logging
 import zipfile
-from image_tools import 重新编码图片
+from .image_tools import 重新编码图片
 from typing import Optional, List
-from request_payload import get_payload, CharCaption
+from .request_payload import get_payload, CharCaption
 
 async def get_character_reference_image(
         novelai_api_lock:asyncio.Lock,

@@ -22,11 +22,11 @@ providers:
 groups:
   939506743:
     name: "新月杀阳间军八"
-    chat_prompt: "prompt/chatprompt/maoliang.md"
-    知识库: "prompt/xingyuesha.md"
+    chat_prompt: "prompt/system_prompts/maoliang.md"
+    知识库: "prompt/knowledge_base/xingyuesha.md"
     image_prompt: "prompt/imageprompt/text-to-image.md"
   1016770226:
     name: "测试群"
-    chat_prompt: "prompt/chatprompt/maoniang.md"
-    知识库: "prompt/xingyuesha.md"
+    chat_prompt: "prompt/system_prompts/maoniang.md"
+    知识库: "prompt/knowledge_base/xingyuesha.md"
     image_prompt: "prompt/imageprompt/text-to-image-nsfw.md"

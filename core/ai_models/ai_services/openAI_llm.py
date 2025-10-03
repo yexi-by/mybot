@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from openai import AsyncOpenAI
 from typing import List, Optional, cast, Any
-from group_context import ChatMessage
+from ..group_context import ChatMessage
 from base import Center, CharCaption
 class OpenAI_LLM:
     def __init__(self,client:AsyncOpenAI) -> None:

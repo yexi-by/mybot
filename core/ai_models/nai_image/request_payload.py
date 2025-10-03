@@ -1,4 +1,4 @@
-from huashichuan import 预设画师串_二次元_正面,预设画师串_二次元_负面,三d正面,三d负面
+from .huashichuan import 预设画师串_二次元_正面,预设画师串_二次元_负面,三d正面,三d负面
 from typing import List, Optional
 from base import Center, CharCaption
 
