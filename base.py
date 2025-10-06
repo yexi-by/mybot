@@ -1,5 +1,8 @@
+# 标准库
+from typing import List, Literal
+
+# 第三方库
 from pydantic import BaseModel
-from typing import Dict, Any, List, Union, Tuple,Optional, cast, Any,Literal
 
 class Center(BaseModel):
     x: float
@@ -17,4 +20,10 @@ class ImageData(BaseModel):
 class ChatMessage(BaseModel):
     role: Literal["system", "user", "assistant", "developer"]
     content: str
+
+class UserIdDate(BaseModel):
+    """用来验证储存的用户ID(通常是qq号),以及请求类型和用户输入"""
+    type:str
+    user_input_text:str
+    
 

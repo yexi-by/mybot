@@ -1,0 +1,42 @@
+# Python 字节码文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# 配置文件
+config/
+*.yaml
+*.yml
+
+# Prompt 文件夹
+prompt/
+
+# 日志文件
+logs/
+config_logs/
+my_logs/
+*.log
+
+# 数据文件
+data/
+
+# 向量数据库
+vector/
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 其他
+.DS_Store

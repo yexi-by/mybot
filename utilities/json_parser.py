@@ -1,16 +1,18 @@
+# 标准库
 import json
-from typing import Dict, Any, List, Union, Tuple,Optional
-from base import CharCaption, Center, ChatMessage
-from ncatbot.core.event.message_segment import (
-    MessageArray,  
-    Text,          
-    At,            
-    AtAll,
-    Image,
-)
-def parse_llm_json_to_message_array(ai_response_json: str) -> MessageArray:
-    """解析大语音模型的json文本并且构造MessageArray消息容器"""
+from typing import List, Optional, Tuple
+
+# 第三方库
+from ncatbot.core import At, AtAll, MessageChain, Text
+
+# 本地模块
+from base import CharCaption
+
+
+def parse_llm_json_to_message_array(ai_response_json: str) -> MessageChain:
+    """解析大语音模型的json文本并且构造MessageChain消息容器"""
     message_elements = []
+
     response_data = json.loads(ai_response_json)
     
     if "Text" in response_data and isinstance(response_data["Text"], str):
@@ -19,13 +21,12 @@ def parse_llm_json_to_message_array(ai_response_json: str) -> MessageArray:
 
     if "At" in response_data and isinstance(response_data["At"], list):
         for user_id in response_data["At"]:
-            if isinstance(user_id, (int, str)):
-                message_elements.append(At(str(int(user_id))))
+            message_elements.append(At(user_id))
 
     if "AtAll" in response_data and response_data["AtAll"] is True:
         message_elements.append(AtAll())
-    
-    return MessageArray(message_elements)
+
+    return MessageChain(message_elements)
 
 def buildTextToImagePrompt(ai_response_json: str) -> Tuple[Optional[str], Optional[str], Optional[List[CharCaption]]]:
     """解析大语音模型的json文本并且构造文生图提示词"""

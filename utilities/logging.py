@@ -1,5 +1,8 @@
-import sys
+# 标准库
 import os
+import sys
+
+# 第三方库
 from loguru import logger
 
 def setup_logger():

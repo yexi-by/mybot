@@ -1,9 +1,12 @@
-from typing import List, Dict, Optional, Any, Union
-import numpy as np
-import httpx
-import faiss
+# 标准库
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+# 第三方库
+import faiss
+import httpx
+import numpy as np
 import yaml
 
 class RAGSearchEnhancer:
