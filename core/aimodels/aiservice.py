@@ -194,14 +194,17 @@ class GroupChatTriggerWords:
     
     async def retract_sent_image(self,msg:GroupMessage)->bool:
         """撤回ai发送的图片"""
-        if not (message_id:=is_reply_and_get_message_id(msg=msg)) or not starts_with_keyword(msg=msg,keyword="撤回"):
+        reply_message_id=is_reply_and_get_message_id(msg=msg)
+        if not reply_message_id:
             return False
-        if not message_id in self.appconfig.imageIdBase64Map:
+        if not starts_with_keyword(msg=msg,keyword="撤回"):
+            return False
+        if not reply_message_id in self.appconfig.imageIdBase64Map:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="撤回的消息不在储存的列表里")
-            return False
+            return True
         try:
-            await self.servicedependencies.bot.api.delete_msg(message_id=message_id)
-            del self.appconfig.imageIdBase64Map[message_id]
+            await self.servicedependencies.bot.api.delete_msg(message_id=reply_message_id)
+            del self.appconfig.imageIdBase64Map[reply_message_id]
             return True
         except Exception as e:
             logger.error(f"撤回图片失败: {e}")
@@ -295,7 +298,7 @@ class RealTimeAIResponse:
     async def generate_image(
             self,
             msg:GroupMessage
-            ):
+            )->bool:
         """普通文生图,只支持novelai"""
         nai_keyword="生成图片"
         if not starts_with_keyword(msg=msg,keyword=nai_keyword):
@@ -336,7 +339,7 @@ class RealTimeAIResponse:
             message=parse_llm_json_to_message_array(ai_response_json)
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
             self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
-            if len(self.appconfig.messages) > 31:
+            if len(self.appconfig.messages) > 31: ## 限制对话历史长度，保留1条系统提示和15轮用户/助手对话（1 + 15*2 = 31）
                 system_prompt=self.appconfig.messages[0]
                 recent_messages = self.appconfig.messages[-6:]
                 self.appconfig.messages.clear()
@@ -368,7 +371,7 @@ class OthersHandles:
     async def dangerous_metacode_injection(
             self,
             msg:GroupMessage
-            ):
+            )->bool:
         """"元代码注入!危险!危险!危险!"""
         keyword="run:\n"
         if not starts_with_keyword(msg=msg,keyword=keyword):

@@ -5,16 +5,16 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from utilities.utils import is_reply_and_get_message_id
+from utilities.utils import is_reply_and_get_message_id,get_text_segment
 
 class FakeMessage:
     def __init__(self, message_data):
         self.message = message_data
 
-fake_msg_data_reply = [{'type': 'reply', 'data': {'id': '12345'}}, {'type': 'text', 'data': {'text': '1'}}]
+fake_msg_data_reply = [{'type': 'reply', 'data': {'id': '12345'}}, {'type': 'text', 'data': {'text': ' /真人化'}}]
 msg_reply = FakeMessage(message_data=fake_msg_data_reply)
-message_id=is_reply_and_get_message_id(msg=msg_reply)
-if not message_id:
-    print("No message ID found")
+message=get_text_segment(msg=msg_reply,offset=2)
+if message=="真人化":
+    print(len(message))
 else:
-    print(message_id)
+    print(message)

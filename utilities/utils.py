@@ -31,7 +31,8 @@ def get_text_segment(msg:GroupMessage,offset:int)->str|None:
     for segment in msg.message:
         if segment.get("type") == "text":
             text = segment.get("data", {}).get("text", "")
-            return text[offset:].strip()
+            text = text.strip()
+            return text[offset:]
 
 
 def checkMentionBehavior(msg:GroupMessage,)->bool:
