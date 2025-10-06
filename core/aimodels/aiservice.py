@@ -15,7 +15,7 @@ from pypinyin import Style, pinyin
 from base import ChatMessage, UserIdDate
 from core.registry import AppConfig, ServiceDependencies
 from utilities.json_parser import buildTextToImagePrompt, parse_llm_json_to_message_array
-from utilities.logging import logger
+from utilities.my_logging import logger
 from utilities.utils import (
     checkMentionBehavior,
     get_text_segment,
@@ -174,10 +174,13 @@ class GroupChatTriggerWords:
             return False
         if starts_with_keyword(msg=msg,keyword="参考生图"):
             user_input_text=get_text_segment(msg=msg,offset=5)
+            if not user_input_text:
+              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,重新输入")
+              return True  
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"novelai"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
             return True
-        user_input = get_text_segment(msg=msg,offset=0)
+        user_input = get_text_segment(msg=msg,offset=1)
         if not user_input:
             return False
         if user_input in self.appconfig.nano_banana_prompts:
@@ -267,7 +270,7 @@ class RealTimeAIResponse:
         if reply_message_id not in self.appconfig.imageIdBase64Map:
             return False
         nai_keyword="参考生图"
-        user_input=get_text_segment(msg=msg,offset=0)
+        user_input=get_text_segment(msg=msg,offset=1)
         reference_image_base64=self.appconfig.imageIdBase64Map[reply_message_id].base64
         if starts_with_keyword(msg=msg,keyword=nai_keyword):
             type="novelai"
@@ -288,6 +291,7 @@ class RealTimeAIResponse:
         ):
             return True
         return False
+
     async def generate_image(
             self,
             msg:GroupMessage
@@ -307,8 +311,7 @@ class RealTimeAIResponse:
         ):
            return True
         return False 
-        
-             
+                   
     async def handle_group_message_response(
             self,
             msg:GroupMessage
@@ -380,7 +383,7 @@ class OthersHandles:
         try:
             local_env = {"self": self, "msg": msg}
             indented_code = textwrap.indent(code_string, "    ")
-            exec(f"async def __temp_async_func():\n{indented_code}", globals(), local_env)
+            exec(f"async def __temp_async_func():\n{indented_code}", {**globals(), **local_env}, local_env)
             await local_env['__temp_async_func']()
             return True
         except Exception as e:

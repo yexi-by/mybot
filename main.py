@@ -11,7 +11,7 @@ from config.setting import gemini_api_key, gemini_base_url, siliconflow_api_key
 from core.registry import ServiceDependencies
 from core.single_group_instance import setupGroupInstance
 from utilities.embedding_search import RAGSearchEnhancer
-from utilities.logging import logger
+from utilities.my_logging import logger
 
 servicedependencies =ServiceDependencies(
     openai_client=AsyncOpenAI(api_key=gemini_api_key,base_url=gemini_base_url),

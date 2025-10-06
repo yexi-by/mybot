@@ -51,13 +51,21 @@ class AiGroupManager:
         asyncio.create_task(self.othersHandles.remove_timed_out_messages())
     async def handle_group_message(self,msg:GroupMessage)->bool:
         handles=[
+            # 系统控制命令 - 优先处理
             self.groupChatTriggerWords.switch_ai_personality,
             self.groupChatTriggerWords.controlAiMode,
-            self.groupChatTriggerWords.log_user_message_and_id,
+            # 管理操作
             self.groupChatTriggerWords.retract_sent_image,
+            # 管理员特权操作
+            self.othersHandles.dangerous_metacode_injection,
+            # 延迟响应 - 处理之前记录的用户请求
             self.delayedAIResponseModule.generateDelayedImageResponse,
+            # 即时响应 - 图生图和文生图
             self.realTimeAIResponse.generateImageResponse,
             self.realTimeAIResponse.generate_image,
+            # 记录用户消息 - 在生图操作之后,避免被提前消费
+            self.groupChatTriggerWords.log_user_message_and_id,
+            # 智能水群 - 兜底处理
             self.realTimeAIResponse.handle_group_message_response
         ]
         for handle in handles:

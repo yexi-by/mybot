@@ -11,7 +11,7 @@ from ncatbot.core import BotClient
 from openai import AsyncOpenAI
 
 # 本地模块
-from utilities.logging import logger
+from utilities.my_logging import logger
 from base import ChatMessage, ImageData, UserIdDate
 from core.aimodels.ai_services.openAI_llm import OpenAI_LLM
 from utilities.embedding_search import RAGSearchEnhancer
@@ -57,10 +57,10 @@ class AppConfig:
     userIdContentMap: Dict[str, dict] = field(default_factory=dict)#{userID:{text,类型}}
     messages: List[ChatMessage] = field(init=False)
     image_messages: List[ChatMessage] = field(init=False)
-    nano_banana_prompts :dict=_NANO_BANANA_PROMPTS
-
+    nano_banana_prompts: dict = field(init=False)
 
     def __post_init__(self):
+        self.nano_banana_prompts = _NANO_BANANA_PROMPTS
         self.messages = [ChatMessage(role="system", content=self.chatSystemPrompt + self.groupChatKnowledgeBase)]
         self.image_messages = [ChatMessage(role="system", content=self.drawing_system_prompt)]
 

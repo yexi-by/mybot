@@ -11,7 +11,7 @@ from ncatbot.core import GroupMessage
 
 # 本地模块
 from base import ImageData
-from utilities.logging import logger
+from utilities.my_logging import logger
 
 if TYPE_CHECKING:
     from core.registry import AppConfig
@@ -92,6 +92,7 @@ def store_image_base64_with_message_id_and_timestamp(
     if len(appconfig.imageIdBase64Map)>=60:
         oldest_key =min(appconfig.imageIdBase64Map, key=lambda k: appconfig.imageIdBase64Map[k].timestamp)
         del appconfig.imageIdBase64Map[oldest_key]
+
 
 
 
