@@ -16,7 +16,7 @@ from utilities.my_logging import logger
 from base import ChatMessage, ImageData, UserIdDate
 from core.aimodels.ai_services.openAI_llm import OpenAI_LLM
 from utilities.embedding_search import RAGSearchEnhancer
-from config.setting import gemini_api_key, gemini_base_url
+from config.setting import gemini_api_key, gemini_base_url,siliconflow_api_key
 
 
 def _load_nano_banana_prompts():
@@ -35,16 +35,23 @@ class ServiceDependencies:
     """存放服务依赖项"""
     gemini_client: genai.Client
     novelai_api_lock: asyncio.Lock
-    rgasearchenhancer: RAGSearchEnhancer
     bot: BotClient
     proxy_client:httpx.AsyncClient
+    fast_track_proxy:httpx.AsyncClient
     openai_llm: OpenAI_LLM = field(init=False)
     openai_client: AsyncOpenAI=field(init=False)
-
+    rgasearchenhancer: RAGSearchEnhancer=field(init=False)
     
     def __post_init__(self):
         self.openai_client=AsyncOpenAI(api_key=gemini_api_key,base_url=gemini_base_url,http_client=self.proxy_client)
         self.openai_llm = OpenAI_LLM(client=self.openai_client)
+        self.rgasearchenhancer=RAGSearchEnhancer(
+            index_path="vector/vector.index",
+            text_mapping_path="vector/text_mapping.json",
+            embedded_model_api_key=siliconflow_api_key,
+            yaml_dictionary="vector/danbooru.yaml",
+            fast_track_proxy=self.fast_track_proxy
+        )
 
 
 @dataclass

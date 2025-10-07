@@ -15,10 +15,12 @@ class RAGSearchEnhancer:
         index_path: Union[str, Path], 
         text_mapping_path: Union[str, Path], 
         embedded_model_api_key: str, 
-        yaml_dictionary: Union[str, Path]
+        yaml_dictionary: Union[str, Path],
+        fast_track_proxy:httpx.AsyncClient
         ) -> None:
         self.embedded_model_api_key: str = embedded_model_api_key
         self.faiss_index = faiss.read_index(index_path)
+        self.fast_track_proxy=fast_track_proxy
         with open(text_mapping_path, 'r', encoding="utf-8") as f:
             self.mapping_data: Dict[int, str] = json.load(f)
         with open(yaml_dictionary, "r", encoding="utf-8") as f:
@@ -35,10 +37,9 @@ class RAGSearchEnhancer:
             "Content-Type": "application/json"
         }
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, headers=headers, timeout=20)
-                response.raise_for_status()  # 如果请求失败 (例如 4xx 或 5xx)，则抛出异常
-                return response.json()
+            response = await self.fast_track_proxy.post(url, json=payload, headers=headers)
+            response.raise_for_status()  # 如果请求失败 (例如 4xx 或 5xx)，则抛出异常
+            return response.json()
         except httpx.RequestError:
             return None
         
