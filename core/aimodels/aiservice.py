@@ -59,7 +59,8 @@ class AiService:
             width=1024,
             height=1024,
             image_base_64_string=reference_image_base64,
-            v4_prompt_char_captions=char_captions
+            v4_prompt_char_captions=char_captions,
+            proxy_client=self.servicedependencies.proxy_client
             ):
             return image_base64
     async def insert_vectorized_data_dynamically(
@@ -84,12 +85,17 @@ class AiService:
             reference_image_base64:str|None=None,
         ):
         """集成了novelai和gemini的高度集成抽象封装,一键生图!"""
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"正在生成图片,请耐心等待片刻")
         if type=="novelai":
             if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
                 await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="构建带有向量化动态词典的生图提示词失败!请重试")
                 return True
-            if not (ai_response_json := await self.servicedependencies.openai_llm.fetch_json_from_ai_model(model_name=self.appconfig.llm_model_name,messages=image_messages)):
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="构建clib提示词时失败!")
+            ai_response_json = await self.servicedependencies.openai_llm.fetch_json_from_ai_model(model_name=self.appconfig.llm_model_name,messages=image_messages)
+            if not ai_response_json:
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"错误消息:未知错误")
+                return True
+            if ai_response_json.startswith("错误消息:"):
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
                 return True
             image_base64 = await self.generate_image(
                 ai_response_json=ai_response_json,
@@ -103,13 +109,13 @@ class AiService:
                 model_name="gemini-2.5-flash-image",
             )
         else:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="数据列表错误,我一会来修")
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="数据列表错误,我一会来修")
             return True
         if not image_base64:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="图片生成失败")
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="图片生成失败")
             return True
         image_MessageChain=MessageChain([Image(f"base64://{image_base64}")])
-        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="图片生成完成")
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="图片生成完成")
         response = cast(Dict[str, Any], await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=image_MessageChain))
         store_image_base64_with_message_id_and_timestamp(response=response,appconfig=self.appconfig,base64_image=image_base64)
         return True
@@ -152,6 +158,7 @@ class GroupChatTriggerWords:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="切换形态失败,未找到人格文件")
             return True
         self.appconfig.messages.clear()
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="人格已切换")
         self.appconfig.messages=[ChatMessage(role="system", content=system_prompt+self.appconfig.groupChatKnowledgeBase)]
         return True
     
@@ -175,7 +182,7 @@ class GroupChatTriggerWords:
         if starts_with_keyword(msg=msg,keyword="参考生图"):
             user_input_text=get_text_segment(msg=msg,offset=5)
             if not user_input_text:
-              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,重新输入")
+              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
               return True  
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"novelai"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
@@ -230,7 +237,7 @@ class DelayedAIResponseModule:
         """延迟图生图(参考模式)"""
         if not str(msg.user_id) in self.appconfig.userIdContentMap:
             return False
-        if not (reference_image_base64:=await is_image_message_return_base64(msg=msg)):
+        if not (reference_image_base64:=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.proxy_client)):
             return False
         # 这里有个我不知道算不算bug的东西:如果用户回复了图片,也可以触发
         store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=str(msg.message_id))
@@ -336,6 +343,9 @@ class RealTimeAIResponse:
             model_name=self.appconfig.llm_model_name,
             messages=self.appconfig.messages
             ):
+            if ai_response_json.startswith("错误消息:"):
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
+                return True
             message=parse_llm_json_to_message_array(ai_response_json)
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
             self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))

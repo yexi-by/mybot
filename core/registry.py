@@ -6,6 +6,7 @@ from typing import Dict, List
 
 # 第三方库
 import json5
+import httpx
 from google import genai
 from ncatbot.core import BotClient
 from openai import AsyncOpenAI
@@ -15,6 +16,7 @@ from utilities.my_logging import logger
 from base import ChatMessage, ImageData, UserIdDate
 from core.aimodels.ai_services.openAI_llm import OpenAI_LLM
 from utilities.embedding_search import RAGSearchEnhancer
+from config.setting import gemini_api_key, gemini_base_url
 
 
 def _load_nano_banana_prompts():
@@ -31,16 +33,18 @@ _NANO_BANANA_PROMPTS = _load_nano_banana_prompts()
 @dataclass
 class ServiceDependencies:
     """存放服务依赖项"""
-    openai_client: AsyncOpenAI
     gemini_client: genai.Client
     novelai_api_lock: asyncio.Lock
     rgasearchenhancer: RAGSearchEnhancer
     bot: BotClient
+    proxy_client:httpx.AsyncClient
     openai_llm: OpenAI_LLM = field(init=False)
+    openai_client: AsyncOpenAI=field(init=False)
+
     
     def __post_init__(self):
+        self.openai_client=AsyncOpenAI(api_key=gemini_api_key,base_url=gemini_base_url,http_client=self.proxy_client)
         self.openai_llm = OpenAI_LLM(client=self.openai_client)
-
 
 
 @dataclass

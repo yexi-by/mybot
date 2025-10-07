@@ -51,15 +51,14 @@ def is_reply_and_get_message_id(msg:GroupMessage)->str|None:
             return str(message_id)
     return None
 
-async def is_image_message_return_base64(msg:GroupMessage)->str|None:
+async def is_image_message_return_base64(msg:GroupMessage,client:httpx.AsyncClient)->str|None:
     """判断消息类型是否为图片,并且返回该图片base64编码"""
     for segment in msg.message:
         if segment.get("type") == 'image':
             if image_url:= segment.get("data",{}).get('url',''):
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(image_url)
-                image_base64=base64.b64encode(response.content).decode('ascii')
-                return image_base64
+                response = await client.get(image_url)
+            image_base64=base64.b64encode(response.content).decode('ascii')
+            return image_base64
     return None
 
 def read_prompt_file(filepath:Path|str)->str|None:

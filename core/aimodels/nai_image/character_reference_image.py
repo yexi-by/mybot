@@ -21,6 +21,7 @@ async def get_character_reference_image(
         new_negative_prompt:str,
         width:int,
         height:int,
+        proxy_client:httpx.AsyncClient,
         v4_prompt_char_captions: Optional[List[CharCaption]],
         image_base_64_string:str|None=None,
         )->str|None:
@@ -46,20 +47,19 @@ async def get_character_reference_image(
 
     try:
         async with novelai_api_lock:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, headers=headers, json=payloads, timeout=timeout)
-                response.raise_for_status()
-                if not response.content:
-                    return None
+            response = await proxy_client.post(url, headers=headers, json=payloads, timeout=timeout)
+            response.raise_for_status()
+            if not response.content:
+                return None
 
-                with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
-                    if not zip_ref.namelist():
-                        return None
-                    image_filename = zip_ref.namelist()[0]
-                    with zip_ref.open(image_filename) as image_file:
-                        image_bytes = image_file.read()
-                        base64_string = base64.b64encode(image_bytes).decode('utf-8')
-                        return base64_string
+            with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
+                if not zip_ref.namelist():
+                    return None
+                image_filename = zip_ref.namelist()[0]
+                with zip_ref.open(image_filename) as image_file:
+                    image_bytes = image_file.read()
+                    base64_string = base64.b64encode(image_bytes).decode('utf-8')
+                    return base64_string
     except httpx.HTTPError as e:
         logging.error(f"NovelAI API请求失败: {e}")
         return None
