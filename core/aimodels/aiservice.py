@@ -237,7 +237,7 @@ class DelayedAIResponseModule:
         """延迟图生图(参考模式)"""
         if not str(msg.user_id) in self.appconfig.userIdContentMap:
             return False
-        if not (reference_image_base64:=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.proxy_client)):
+        if not (reference_image_base64:=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.fast_track_proxy)):
             return False
         # 这里有个我不知道算不算bug的东西:如果用户回复了图片,也可以触发
         store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=str(msg.message_id))

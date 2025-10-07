@@ -13,7 +13,7 @@ class FakeMessage:
 
 fake_msg_data_reply = [{'type': 'reply', 'data': {'id': '12345'}}, {'type': 'text', 'data': {'text': ' /真人化'}}]
 msg_reply = FakeMessage(message_data=fake_msg_data_reply)
-message=get_text_segment(msg=msg_reply,offset=2)
+message=get_text_segment(msg=msg_reply,offset=2)##
 if message=="真人化":
     print(len(message))
 else:

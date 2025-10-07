@@ -28,6 +28,7 @@ def setupGroupInstance(
         msg:GroupMessage,
         servicedependencies: ServiceDependencies,
         )->Optional[AiGroupManager]:
+    """注册单群实例"""
     if not int(msg.group_id) in groups_config:
         return None
     if int(msg.group_id) in group_ai_instances:
