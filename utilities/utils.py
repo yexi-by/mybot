@@ -21,6 +21,7 @@ def starts_with_keyword(msg:GroupMessage,keyword:str)->bool:
     for segment in msg.message:
         if segment.get("type") == "text":
             text = segment.get("data", {}).get("text", "")
+            text = text.strip()
             if text.startswith(f"/{keyword}"):
                 return True
     return False

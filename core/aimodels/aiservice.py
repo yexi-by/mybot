@@ -252,7 +252,8 @@ class DelayedAIResponseModule:
             type=type,
             reference_image_base64=reference_image_base64,
             ):
-            del self.appconfig.userIdContentMap[str(msg.user_id)]
+            if str(msg.user_id) in self.appconfig.userIdContentMap:
+                del self.appconfig.userIdContentMap[str(msg.user_id)]
             return True
         return False
         
