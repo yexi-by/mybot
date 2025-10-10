@@ -50,7 +50,7 @@ def get_payload(
             "inpaintImg2ImgStrength": 1,  # 图像修复强度
             "v4_prompt": {  # V4版本提示词配置
             "caption": {  # 标题配置
-                "base_caption": f"{prompt},{预设画师串_二次元_正面},",  # 基础标题描述
+                "base_caption": f"{prompt}",  # 基础标题描述
                 "char_captions": []  # 角色标题列表
             },
             "use_coords": False,  # 在V4提示词中使用坐标
@@ -58,7 +58,7 @@ def get_payload(
             },
             "v4_negative_prompt": {  # V4版本负面提示词配置
             "caption": {  # 负面标题配置
-                "base_caption": f"{new_negative_prompt},{预设画师串_二次元_负面},",  # 基础负面描述
+                "base_caption": f"{new_negative_prompt}",  # 基础负面描述
                 "char_captions": []  # 角色负面标题列表
             },
             "legacy_uc": False  # 旧版未分类模式

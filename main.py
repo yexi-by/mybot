@@ -19,6 +19,7 @@ my_proxy={
 servicedependencies =ServiceDependencies(
     gemini_client=genai.Client(api_key=gemini_api_key,http_options={"client_args": {"proxies": my_proxy}}),# type: ignore
     novelai_api_lock=asyncio.Lock(),
+    jimeng_api_lock=asyncio.Lock(),
     proxy_client=httpx.AsyncClient(proxy=system_proxies,trust_env=False,timeout=60.0),
     bot=BotClient(),
     fast_track_proxy=httpx.AsyncClient(trust_env=False,timeout=15.0)#直连代理,主要用于国内服务

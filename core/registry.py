@@ -35,6 +35,7 @@ class ServiceDependencies:
     """存放服务依赖项"""
     gemini_client: genai.Client
     novelai_api_lock: asyncio.Lock
+    jimeng_api_lock:asyncio.Lock
     bot: BotClient
     proxy_client:httpx.AsyncClient
     fast_track_proxy:httpx.AsyncClient

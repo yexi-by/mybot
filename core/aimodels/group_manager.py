@@ -63,6 +63,7 @@ class AiGroupManager:
             # 即时响应 - 图生图和文生图
             self.realTimeAIResponse.generateImageResponse,
             self.realTimeAIResponse.generate_image,
+            self.realTimeAIResponse.get_jimeng_videos,
             # 记录用户消息 
             self.groupChatTriggerWords.log_user_message_and_id,
             # 智能水群 - 兜底处理

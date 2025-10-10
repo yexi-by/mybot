@@ -8,7 +8,7 @@ from typing import Any, Dict, cast,Literal,Optional
 
 # 第三方库
 import yaml
-from ncatbot.core import GroupMessage, Image, MessageChain
+from ncatbot.core import GroupMessage, Image, MessageChain,Video
 from pypinyin import Style, pinyin
 
 # 本地模块
@@ -28,6 +28,7 @@ from utilities.utils import (
 
 from .ai_services.gemini_image import text_and_image_to_image
 from .nai_image.character_reference_image import get_character_reference_image
+from.volcengine_video.get_volcengine_video import get_videos
 
 class AiService:
     """辅助类"""
@@ -322,6 +323,33 @@ class RealTimeAIResponse:
         ):
            return True
         return False 
+    async def get_jimeng_videos(
+            self,
+            msg:GroupMessage
+        ):
+        jimeng_videos_keyword="生成视频"
+        if not starts_with_keyword(msg=msg,keyword=jimeng_videos_keyword):
+            return False
+        user_input_text=get_text_segment(msg=msg,offset=len(f"/{jimeng_videos_keyword}"))
+        if not user_input_text:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="输入为空亦或者获取图片提示词失败")
+            return True
+        lock=self.servicedependencies.jimeng_api_lock
+        if lock.locked():
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="目前有人正在占用事件循环,处理完他的在处理你的")
+        async with lock:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="正在生成视频,请稍等片刻")
+            video_url=await get_videos(
+                client=self.servicedependencies.fast_track_proxy,
+                prompt=user_input_text
+            )
+        if not video_url:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成失败") 
+            return True
+        video_message=MessageChain(Video(video_url))
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成完成") 
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=video_message) 
+        return True
                    
     async def handle_group_message_response(
             self,
@@ -340,6 +368,14 @@ class RealTimeAIResponse:
             f"消息内容: '{msg.raw_message}'"
         )
         self.appconfig.messages.append(ChatMessage(role="user", content=user_prompt))
+        image_base64=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.fast_track_proxy)
+        if image_base64:
+            store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=image_base64,message_id=msg.message_id)
+            self.appconfig.messages.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64}"}}]))
+        message_id=is_reply_and_get_message_id(msg=msg)
+        if message_id in self.appconfig.imageIdBase64Map:
+            image_base64_s=self.appconfig.imageIdBase64Map[message_id].base64
+            self.appconfig.messages.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64_s}"}}]))
         if ai_response_json:= await self.servicedependencies.openai_llm.fetch_json_from_ai_model(
             model_name=self.appconfig.llm_model_name,
             messages=self.appconfig.messages
@@ -349,6 +385,10 @@ class RealTimeAIResponse:
                 return True
             message=parse_llm_json_to_message_array(ai_response_json)
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
+            if image_base64:
+                del self.appconfig.messages[-1]
+            if message_id in self.appconfig.imageIdBase64Map:
+                del self.appconfig.messages[-1]
             self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
             if len(self.appconfig.messages) > 31: ## 限制对话历史长度，保留1条系统提示和15轮用户/助手对话（1 + 15*2 = 31）
                 system_prompt=self.appconfig.messages[0]
