@@ -1,6 +1,7 @@
 # 容器
 # 标准库
 import asyncio
+import json
 from dataclasses import dataclass, field
 from typing import Dict, List
 
@@ -10,6 +11,7 @@ import httpx
 from google import genai
 from ncatbot.core import BotClient
 from openai import AsyncOpenAI
+from volcenginesdkarkruntime import AsyncArk
 
 # 本地模块
 from utilities.my_logging import logger
@@ -34,8 +36,9 @@ _NANO_BANANA_PROMPTS = _load_nano_banana_prompts()
 class ServiceDependencies:
     """存放服务依赖项"""
     gemini_client: genai.Client
+    volcengine_client:AsyncArk
     novelai_api_lock: asyncio.Lock
-    jimeng_api_lock:asyncio.Lock
+    volcengine_api_lock:asyncio.Lock
     bot: BotClient
     proxy_client:httpx.AsyncClient
     fast_track_proxy:httpx.AsyncClient
@@ -63,19 +66,24 @@ class AppConfig:
     drawing_system_prompt: str
     llm_model_name: str
     novelai_api_key: str
+    volcengine_model_name:str
     ai_mode_active: bool = True
     root_id:str="2172959822"
     imageIdBase64Map: Dict[str, ImageData] = field(default_factory=dict)#{唯一消息ID:{图片base64编码,时间}}
     userIdContentMap: Dict[str, dict] = field(default_factory=dict)#{userID:{text,类型}}
+    help_texts:dict=field(default_factory=dict)#帮助信息
     messages: List[ChatMessage] = field(init=False)
     image_messages: List[ChatMessage] = field(init=False)
     nano_banana_prompts: dict = field(init=False)
+
 
     def __post_init__(self):
         self.nano_banana_prompts = _NANO_BANANA_PROMPTS
         self.messages = [ChatMessage(role="system", content=self.chatSystemPrompt + self.groupChatKnowledgeBase)]
         self.image_messages = [ChatMessage(role="system", content=self.drawing_system_prompt)]
-
+        with open("data/help.json","r",encoding='utf-8') as f:
+            help_date=json.load(f)
+        self.help_texts=help_date
 
     
 

@@ -6,9 +6,10 @@ import httpx
 from google import genai
 from ncatbot.core import BotClient, GroupMessage
 from openai import AsyncOpenAI
+from volcenginesdkarkruntime import AsyncArk
 
 # 本地模块
-from config.setting import gemini_api_key, gemini_base_url, siliconflow_api_key,system_proxies
+from config.setting import gemini_api_key, gemini_base_url, siliconflow_api_key,system_proxies,volcengine_api_key,volcengine_base_url
 from core.registry import ServiceDependencies
 from core.single_group_instance import setupGroupInstance
 from utilities.embedding_search import RAGSearchEnhancer
@@ -19,7 +20,8 @@ my_proxy={
 servicedependencies =ServiceDependencies(
     gemini_client=genai.Client(api_key=gemini_api_key,http_options={"client_args": {"proxies": my_proxy}}),# type: ignore
     novelai_api_lock=asyncio.Lock(),
-    jimeng_api_lock=asyncio.Lock(),
+    volcengine_api_lock=asyncio.Lock(),
+    volcengine_client=AsyncArk(api_key=volcengine_api_key,base_url=volcengine_base_url),
     proxy_client=httpx.AsyncClient(proxy=system_proxies,trust_env=False,timeout=60.0),
     bot=BotClient(),
     fast_track_proxy=httpx.AsyncClient(trust_env=False,timeout=15.0)#直连代理,主要用于国内服务
@@ -33,6 +35,5 @@ async def handle_group_message(msg: GroupMessage):
         servicedependencies=servicedependencies
     ):
         await aigroupmanager.handle_group_message(msg=msg)
-
 if __name__ == "__main__":
     servicedependencies.bot.run(bt_uin=742654932)

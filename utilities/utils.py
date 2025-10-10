@@ -19,14 +19,32 @@ if TYPE_CHECKING:
 def starts_with_keyword(msg:GroupMessage,keyword:str)->bool:
     """检测文本是否包含关键字"""
     for segment in msg.message:
-        if segment.get("type") == "text":
-            text = segment.get("data", {}).get("text", "")
-            text = text.strip()
-            if text.startswith(f"/{keyword}"):
-                return True
+        if not segment.get("type") == "text":
+            continue
+        text = segment.get("data", {}).get("text", "").strip()
+        if text.startswith(f"/{keyword}"):
+            return True
     return False
 
+def check_at_all(msg: GroupMessage) -> bool:
+    """检查是否艾特了全体成员"""
+    for segment in msg.message:
+        if not segment.get("type") == "at":
+            continue
+        if segment.get("data", {}).get("qq") == "all":
+            return True
+    return False
 
+def is_message_only_keyword(msg:GroupMessage,keyword:str)->bool:
+    """检测文本是否只包含关键字"""
+    for segment in msg.message:
+        if not segment.get("type") == "text":
+            continue
+        text = segment.get("data", {}).get("text", "").strip()
+        if text==(f"/{keyword}"):
+            return True
+    return False
+    
 def get_text_segment(msg:GroupMessage,offset:int)->str|None:
     """降噪后提取文本内容"""
     for segment in msg.message:

@@ -24,11 +24,14 @@ from utilities.utils import (
     read_prompt_file,
     starts_with_keyword,
     store_image_base64_with_message_id_and_timestamp,
+    is_message_only_keyword,
+    check_at_all
 )
 
 from .ai_services.gemini_image import text_and_image_to_image
 from .nai_image.character_reference_image import get_character_reference_image
-from.volcengine_video.get_volcengine_video import get_videos
+from .volcengine_video.get_seedance_video import post_video
+from .volcengine_video.get_jimemg_video import get_videos
 
 class AiService:
     """辅助类"""
@@ -120,6 +123,38 @@ class AiService:
         response = cast(Dict[str, Any], await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=image_MessageChain))
         store_image_base64_with_message_id_and_timestamp(response=response,appconfig=self.appconfig,base64_image=image_base64)
         return True
+    
+    async def generateVolcanoEngineVideo(
+            self,
+            msg:GroupMessage,
+            prompt:str|None,
+            reference_image_base64:str|None=None
+            ):
+        """火山引擎生成视频抽象封装"""
+        if not prompt:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="输入为空亦或者获取提示词失败")
+            return True
+        if reference_image_base64:
+            store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=msg.message_id)
+        lock=self.servicedependencies.volcengine_api_lock
+        if lock.locked():
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="目前有人正在占用事件循环,处理完他的在处理你的")
+        async with lock:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="正在生成视频,请稍等片刻")
+            try:
+                video_url=await post_video(
+                    client=self.servicedependencies.volcengine_client,
+                    prompt=prompt,
+                    model_name=self.appconfig.volcengine_model_name,
+                    image_base64=reference_image_base64,
+                )
+            except:
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="不是哥们,你发的什么,过不了审核啊") 
+                return True
+        video_message=MessageChain(Video(video_url))
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成完成") 
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=video_message) 
+        return True
 
         
             
@@ -180,14 +215,25 @@ class GroupChatTriggerWords:
         """储存用户提示词和消息id"""
         if is_reply_and_get_message_id(msg=msg):
             return False
-        if starts_with_keyword(msg=msg,keyword="参考生图"):
-            user_input_text=get_text_segment(msg=msg,offset=5)
+        image_keword="参考生图"
+        video_keyword="参考图片生成视频"
+        if starts_with_keyword(msg=msg,keyword=image_keword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{image_keword}"))
             if not user_input_text:
               await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
               return True  
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"novelai"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
             return True
+        elif starts_with_keyword(msg=msg,keyword=video_keyword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{video_keyword}"))
+            if not user_input_text:
+              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
+              return True 
+            self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"volcengine"}
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
+            return True
+        
         user_input = get_text_segment(msg=msg,offset=1)
         if not user_input:
             return False
@@ -219,6 +265,26 @@ class GroupChatTriggerWords:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="撤回图片失败")
         return False
     
+    async def listHelpFunctions(self,msg:GroupMessage):
+        """help指令"""
+        for keyword in self.appconfig.help_texts:
+            if not is_message_only_keyword(msg=msg,keyword=keyword):
+                continue
+            text=self.appconfig.help_texts[keyword]
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text=text)
+            return True
+        return False
+    
+    async def sendMessageOnAllMention(self,msg:GroupMessage):  
+        """自动TD"""   
+        if not check_at_all(msg=msg):
+            return False
+        text="td"
+        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text=text)
+        return True
+        
+
+    
 class DelayedAIResponseModule:
     """延迟ai回复模块"""
     def __init__(
@@ -240,10 +306,12 @@ class DelayedAIResponseModule:
             return False
         if not (reference_image_base64:=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.fast_track_proxy)):
             return False
+        type=self.appconfig.userIdContentMap.get(str(msg.user_id),{}).get("type","")
+        if type=="volcengine":
+            return False
         # 这里有个我不知道算不算bug的东西:如果用户回复了图片,也可以触发
         store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=str(msg.message_id))
         user_input_text=self.appconfig.userIdContentMap.get(str(msg.user_id),{}).get("user_input_text","")
-        type=self.appconfig.userIdContentMap.get(str(msg.user_id),{}).get("type","")
         if not user_input_text:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="获取列表里的用户提示词失败,我一会去修")
             return True
@@ -252,6 +320,30 @@ class DelayedAIResponseModule:
             user_input_text=user_input_text,
             type=type,
             reference_image_base64=reference_image_base64,
+            ):
+            if str(msg.user_id) in self.appconfig.userIdContentMap:
+                del self.appconfig.userIdContentMap[str(msg.user_id)]
+            return True
+        return False
+    
+    async def generateVideoWithImageDelay(self,msg:GroupMessage):
+        """延迟参考图片生成视频"""
+        if not str(msg.user_id) in self.appconfig.userIdContentMap:
+            return False
+        if not (reference_image_base64:=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.fast_track_proxy)):
+            return False
+        type=self.appconfig.userIdContentMap.get(str(msg.user_id),{}).get("type","")
+        if type != "volcengine":
+            return False
+        store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=str(msg.message_id))
+        user_input_text=self.appconfig.userIdContentMap.get(str(msg.user_id),{}).get("user_input_text","")
+        if not user_input_text:
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="获取列表里的用户提示词失败,我一会去修")
+            return True
+        if await self.aiservice.generateVolcanoEngineVideo(
+            msg=msg,
+            prompt=user_input_text,
+            reference_image_base64=reference_image_base64
             ):
             if str(msg.user_id) in self.appconfig.userIdContentMap:
                 del self.appconfig.userIdContentMap[str(msg.user_id)]
@@ -303,6 +395,26 @@ class RealTimeAIResponse:
         ):
             return True
         return False
+    
+    async def replyWithVideoFromImage(
+            self,
+            msg:GroupMessage
+        ):
+        reply_message_id=is_reply_and_get_message_id(msg=msg)
+        if not reply_message_id:
+            return False
+        if reply_message_id not in self.appconfig.imageIdBase64Map:
+            return False
+        video_keyword="参考图片生成视频"
+        if not starts_with_keyword(msg=msg,keyword=video_keyword):
+            return False
+        user_input_text=get_text_segment(msg=msg,offset=len(f"/{video_keyword}"))
+        image_base64=self.appconfig.imageIdBase64Map[reply_message_id]
+        return await self.aiservice.generateVolcanoEngineVideo(
+                msg=msg,
+                prompt=user_input_text,
+                reference_image_base64=image_base64  # type: ignore
+            )
 
     async def generate_image(
             self,
@@ -323,33 +435,20 @@ class RealTimeAIResponse:
         ):
            return True
         return False 
-    async def get_jimeng_videos(
+    
+    async def get_videos(
             self,
             msg:GroupMessage
         ):
-        jimeng_videos_keyword="生成视频"
-        if not starts_with_keyword(msg=msg,keyword=jimeng_videos_keyword):
+        """文生视频"""
+        video_keyword="生成视频"
+        if not starts_with_keyword(msg=msg,keyword=video_keyword):
             return False
-        user_input_text=get_text_segment(msg=msg,offset=len(f"/{jimeng_videos_keyword}"))
-        if not user_input_text:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="输入为空亦或者获取图片提示词失败")
-            return True
-        lock=self.servicedependencies.jimeng_api_lock
-        if lock.locked():
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="目前有人正在占用事件循环,处理完他的在处理你的")
-        async with lock:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="正在生成视频,请稍等片刻")
-            video_url=await get_videos(
-                client=self.servicedependencies.fast_track_proxy,
-                prompt=user_input_text
-            )
-        if not video_url:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成失败") 
-            return True
-        video_message=MessageChain(Video(video_url))
-        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成完成") 
-        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=video_message) 
-        return True
+        user_input_text=get_text_segment(msg=msg,offset=len(f"/{video_keyword}"))
+        return await self.aiservice.generateVolcanoEngineVideo(
+            msg=msg,
+            prompt=user_input_text,
+        )
                    
     async def handle_group_message_response(
             self,

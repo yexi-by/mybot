@@ -56,14 +56,20 @@ class AiGroupManager:
             self.groupChatTriggerWords.controlAiMode,
             # 管理操作
             self.groupChatTriggerWords.retract_sent_image,
+            # 帮助功能
+            self.groupChatTriggerWords.listHelpFunctions,
             # 管理员特权操作
             self.othersHandles.dangerous_metacode_injection,
             # 延迟响应 - 处理之前记录的用户请求
             self.delayedAIResponseModule.generateDelayedImageResponse,
-            # 即时响应 - 图生图和文生图
+            self.delayedAIResponseModule.generateVideoWithImageDelay,
+            # 即时响应 - 图生图和文生图和图生视频和文生视频
             self.realTimeAIResponse.generateImageResponse,
+            self.realTimeAIResponse.replyWithVideoFromImage,
             self.realTimeAIResponse.generate_image,
-            self.realTimeAIResponse.get_jimeng_videos,
+            self.realTimeAIResponse.get_videos,
+            #自动td
+            self.groupChatTriggerWords.sendMessageOnAllMention,
             # 记录用户消息 
             self.groupChatTriggerWords.log_user_message_and_id,
             # 智能水群 - 兜底处理

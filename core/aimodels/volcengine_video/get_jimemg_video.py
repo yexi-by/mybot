@@ -9,7 +9,6 @@ from utilities.my_logging import logger
 import httpx
 from config.setting import access_key,secret_key
 
-# ====== 基本配置 ======
 METHOD = "POST"
 HOST = "visual.volcengineapi.com"
 ENDPOINT = f"https://{HOST}"
@@ -17,11 +16,11 @@ REGION = "cn-north-1"
 SERVICE = "cv"
 VERSION = "2022-08-31"
 
-# ====== 保留硬编码（占位），你后续可替换为环境变量 ======
+
 ACCESS_KEY = access_key
 SECRET_KEY = secret_key
 
-# 即梦视频模型的 req_key（占位，按需要替换为 3.0 / 3.0 Pro 对应的值）
+# 即梦视频模型的 req_key
 REQ_KEY = "jimeng_ti2v_v30_pro"
 
 # ====== V4 签名工具 ======
@@ -77,7 +76,6 @@ def _signed_headers_and_auth(query_str: str, body: str, now_utc: datetime.dateti
         "Content-Type": content_type,
     }
 
-# ====== API（异步） ======
 async def _submit_text2video_task(
     client: httpx.AsyncClient,
     prompt: str,
@@ -131,7 +129,6 @@ async def _query_text2video_result(
     resp.raise_for_status()
     return resp.json()
 
-# ====== 对外主函数（异步封装） ======
 async def get_videos(
     client: httpx.AsyncClient,
     prompt: str,
@@ -170,12 +167,8 @@ async def get_videos(
         msg = res.get("message")
         data = res.get("data") or {}
 
-        # 视觉服务通用结构：
-        # data.status: in_queue / generating / done / not_found / expired
-        # data.video_url: 完成后的视频地址
         status = data.get("status")
         if status != last_status:
-            # 可按需改为你的日志输出
             logger.info(f"[poll] status={status}, code={code}, message={msg}")
             last_status = status
 

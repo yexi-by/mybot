@@ -6,7 +6,7 @@ from typing import Dict, Optional, Tuple
 from ncatbot.core import GroupMessage
 
 # 本地模块
-from config.setting import gemini_model_name, groups_config, novelai_api_key
+from config.setting import gemini_model_name, groups_config, novelai_api_key,volcengine_model_name
 from utilities.utils import read_prompt_file
 
 from .aimodels.group_manager import AiGroupManager
@@ -41,6 +41,7 @@ def setupGroupInstance(
         drawing_system_prompt=drawing_system_prompt,
         llm_model_name=gemini_model_name,
         novelai_api_key=novelai_api_key,
+        volcengine_model_name=volcengine_model_name,
     )
 
     aigroupmanager=AiGroupManager(
