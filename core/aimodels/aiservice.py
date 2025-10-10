@@ -409,7 +409,7 @@ class RealTimeAIResponse:
         if not starts_with_keyword(msg=msg,keyword=video_keyword):
             return False
         user_input_text=get_text_segment(msg=msg,offset=len(f"/{video_keyword}"))
-        image_base64=self.appconfig.imageIdBase64Map[reply_message_id]
+        image_base64=self.appconfig.imageIdBase64Map[reply_message_id].base64
         return await self.aiservice.generateVolcanoEngineVideo(
                 msg=msg,
                 prompt=user_input_text,
