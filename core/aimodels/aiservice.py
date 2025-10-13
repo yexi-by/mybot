@@ -151,6 +151,9 @@ class AiService:
             except:
                 await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="不是哥们,你发的什么,过不了审核啊") 
                 return True
+            if not video_url:
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成失败了,这傻逼字节跳动") 
+                return True
         video_message=MessageChain(Video(video_url))
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="视频生成完成") 
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=video_message) 

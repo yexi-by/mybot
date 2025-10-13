@@ -50,7 +50,7 @@ class RAGSearchEnhancer:
         # 获取向量表示
         api_response = await self.get_embedding_values([query_text])
         if not (api_response and 'data' in api_response and api_response['data']):
-            return None  # 返回空列表表示查询失败
+            return None  
         # api_response返回是一个普通的python_list,需要先转化为 NumPy 格式的、float32 类型的数组,用[...]形式把他变成一个(1, D)的二维数组，表示1个 D 维的查询向量
         query_vector = np.array([api_response['data'][0]['embedding']]).astype('float32')
         # 归一化
