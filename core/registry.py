@@ -58,6 +58,7 @@ class ServiceDependencies:
         )
 
 
+
 @dataclass
 class AppConfig:
     """储存单群上下文以及各项配置"""

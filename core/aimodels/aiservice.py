@@ -30,8 +30,9 @@ from utilities.utils import (
 
 from .ai_services.gemini_image import text_and_image_to_image
 from .nai_image.character_reference_image import get_character_reference_image
-from .volcengine_video.get_seedance_video import post_video
-from .volcengine_video.get_jimemg_video import get_videos
+from .volcengine.get_seedance_video import post_video
+from .volcengine.get_jimemg_video import get_videos
+from.volcengine.volcengineimage import get_volcengine_image
 
 class AiService:
     """辅助类"""
@@ -85,10 +86,10 @@ class AiService:
             self,
             msg:GroupMessage,
             user_input_text:str,
-            type:Literal["gemini", "novelai"],#"gemini"和"novelai二选一
+            type:Literal["gemini", "novelai","volcengine_即梦4.0"],
             reference_image_base64:str|None=None,
         ):
-        """集成了novelai和gemini的高度集成抽象封装,一键生图!"""
+        """集成了novelai和gemini和火山即梦4.0的高度集成抽象封装,一键生图!"""
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"正在生成图片,请耐心等待片刻")
         if type=="novelai":
             if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
@@ -111,6 +112,12 @@ class AiService:
                 prompt=user_input_text,
                 image_base64=reference_image_base64,
                 model_name="gemini-2.5-flash-image",
+            )
+        elif type=="volcengine_即梦4.0":
+            image_base64=await get_volcengine_image(
+                client=self.servicedependencies.volcengine_client,
+                prompt=user_input_text,
+                iamgebase64=reference_image_base64,
             )
         else:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="数据列表错误,我一会来修")
@@ -220,6 +227,7 @@ class GroupChatTriggerWords:
             return False
         image_keword="参考生图"
         video_keyword="参考图片生成视频"
+        volcengine_image_keyword="1参考生图"
         if starts_with_keyword(msg=msg,keyword=image_keword):
             user_input_text=get_text_segment(msg=msg,offset=len(f"/{image_keword}"))
             if not user_input_text:
@@ -236,7 +244,14 @@ class GroupChatTriggerWords:
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"volcengine"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
             return True
-        
+        elif starts_with_keyword(msg=msg,keyword=volcengine_image_keyword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{volcengine_image_keyword}"))
+            if not user_input_text:
+              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
+              return True 
+            self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"volcengine_即梦4.0"}
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
+            return True       
         user_input = get_text_segment(msg=msg,offset=1)
         if not user_input:
             return False
@@ -377,6 +392,7 @@ class RealTimeAIResponse:
         if reply_message_id not in self.appconfig.imageIdBase64Map:
             return False
         nai_keyword="参考生图"
+        volcengine_image_keword="1参考生图"
         user_input=get_text_segment(msg=msg,offset=1)
         reference_image_base64=self.appconfig.imageIdBase64Map[reply_message_id].base64
         if starts_with_keyword(msg=msg,keyword=nai_keyword):
@@ -385,6 +401,9 @@ class RealTimeAIResponse:
         elif user_input in self.appconfig.nano_banana_prompts:
             type="gemini"
             user_input_text=self.appconfig.nano_banana_prompts.get(user_input,{}).get("prompt","")
+        elif starts_with_keyword(msg=msg,keyword=volcengine_image_keword):
+            type="volcengine_即梦4.0"
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{volcengine_image_keword}"))
         else:
             return False
         if not user_input_text:
@@ -425,16 +444,22 @@ class RealTimeAIResponse:
             )->bool:
         """普通文生图,只支持novelai"""
         nai_keyword="生成图片"
-        if not starts_with_keyword(msg=msg,keyword=nai_keyword):
+        volcengine_image_keword="1生成图片"
+        if starts_with_keyword(msg=msg,keyword=nai_keyword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{nai_keyword}"))
+            type="volcengine_即梦4.0"
+        elif starts_with_keyword(msg=msg,keyword=volcengine_image_keword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{volcengine_image_keword}"))
+            type="novelai"
+        else:
             return False
-        user_input_text=get_text_segment(msg=msg,offset=len(f"/{nai_keyword}"))
         if not user_input_text:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="输入为空亦或者获取图片提示词失败")
             return True
         if await self.aiservice.process_user_input_to_novlai_image(
             msg=msg,
             user_input_text=user_input_text,
-            type= "novelai",
+            type=type,
         ):
            return True
         return False 
