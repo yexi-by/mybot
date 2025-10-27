@@ -6,6 +6,7 @@ import textwrap
 from pathlib import Path
 from typing import Any, Dict, cast,Literal,Optional
 
+
 # 第三方库
 import yaml
 from ncatbot.core import GroupMessage, Image, MessageChain,Video
@@ -25,7 +26,9 @@ from utilities.utils import (
     starts_with_keyword,
     store_image_base64_with_message_id_and_timestamp,
     is_message_only_keyword,
-    check_at_all
+    check_at_all,
+    enlarge_image_base64,
+    get_image_size_from_base64,
 )
 
 from .ai_services.gemini_image import text_and_image_to_image
@@ -33,6 +36,8 @@ from .nai_image.character_reference_image import get_character_reference_image
 from .volcengine.get_seedance_video import post_video
 from .volcengine.get_jimemg_video import get_videos
 from.volcengine.volcengineimage import get_volcengine_image
+from .fai_image_video.fai_image import qqbot_get_image
+from config.setting import 参考生图_即梦海外_fal
 
 class AiService:
     """辅助类"""
@@ -86,10 +91,10 @@ class AiService:
             self,
             msg:GroupMessage,
             user_input_text:str,
-            type:Literal["gemini", "novelai","volcengine_即梦4.0"],
+            type:Literal["gemini", "novelai","volcengine_即梦4.0","fai"],
             reference_image_base64:str|None=None,
         ):
-        """集成了novelai和gemini和火山即梦4.0的高度集成抽象封装,一键生图!"""
+        """集成了novelai和gemini和火山即梦4.0和fai的高度集成抽象封装,一键生图!"""
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"正在生成图片,请耐心等待片刻")
         if type=="novelai":
             if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
@@ -119,6 +124,15 @@ class AiService:
                 prompt=user_input_text,
                 iamgebase64=reference_image_base64,
             )
+        elif type=="fai":
+            if reference_image_base64:
+                image_size=get_image_size_from_base64(base64_str=reference_image_base64)
+            image_base64=await qqbot_get_image(
+                fal_client=self.servicedependencies.fal_client,
+                prompt=user_input_text,
+                image_base64s=reference_image_base64,
+                image_size=image_size              
+            )
         else:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="数据列表错误,我一会来修")
             return True
@@ -142,6 +156,7 @@ class AiService:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="输入为空亦或者获取提示词失败")
             return True
         if reference_image_base64:
+            reference_image_base64=enlarge_image_base64(image_base64=reference_image_base64)
             store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=reference_image_base64,message_id=msg.message_id)
         lock=self.servicedependencies.volcengine_api_lock
         if lock.locked():
@@ -251,7 +266,15 @@ class GroupChatTriggerWords:
               return True 
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"volcengine_即梦4.0"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
-            return True       
+            return True  
+        elif starts_with_keyword(msg=msg,keyword=参考生图_即梦海外_fal):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{参考生图_即梦海外_fal}"))
+            if not user_input_text:
+              await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
+              return True 
+            self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"fai"}
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
+            return True
         user_input = get_text_segment(msg=msg,offset=1)
         if not user_input:
             return False
@@ -404,6 +427,9 @@ class RealTimeAIResponse:
         elif starts_with_keyword(msg=msg,keyword=volcengine_image_keword):
             type="volcengine_即梦4.0"
             user_input_text=get_text_segment(msg=msg,offset=len(f"/{volcengine_image_keword}"))
+        elif starts_with_keyword(msg=msg,keyword=参考生图_即梦海外_fal):
+            type="fai"
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{参考生图_即梦海外_fal}"))
         else:
             return False
         if not user_input_text:
@@ -447,10 +473,10 @@ class RealTimeAIResponse:
         volcengine_image_keword="1生成图片"
         if starts_with_keyword(msg=msg,keyword=nai_keyword):
             user_input_text=get_text_segment(msg=msg,offset=len(f"/{nai_keyword}"))
-            type="volcengine_即梦4.0"
+            type="novelai"
         elif starts_with_keyword(msg=msg,keyword=volcengine_image_keword):
             user_input_text=get_text_segment(msg=msg,offset=len(f"/{volcengine_image_keword}"))
-            type="novelai"
+            type="volcengine_即梦4.0"
         else:
             return False
         if not user_input_text:
@@ -573,7 +599,8 @@ class OthersHandles:
             return True
 
 
-            
+
+
 
           
         

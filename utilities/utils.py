@@ -1,17 +1,22 @@
 # 储存小的功能函数方便调用
 # 标准库
 import base64
-import datetime
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
+from datetime import datetime,timedelta
+
 
 # 第三方库
 import httpx
 from ncatbot.core import GroupMessage
+from io import BytesIO
+from PIL import Image
 
 # 本地模块
 from base import ImageData
 from utilities.my_logging import logger
+from core.registry import ServiceDependencies
 
 if TYPE_CHECKING:
     from core.registry import AppConfig
@@ -106,11 +111,46 @@ def store_image_base64_with_message_id_and_timestamp(
         message_id = response["data"]["message_id"]      
     appconfig.imageIdBase64Map[str(message_id)]=ImageData(
         base64=base64_image,
-        timestamp=datetime.datetime.now().timestamp()
+        timestamp=datetime.now().timestamp()
     )
     if len(appconfig.imageIdBase64Map)>=60:
         oldest_key =min(appconfig.imageIdBase64Map, key=lambda k: appconfig.imageIdBase64Map[k].timestamp)
         del appconfig.imageIdBase64Map[oldest_key]
+
+def enlarge_image_base64(image_base64: str) -> str:
+    """将图片的宽+300"""
+    image_data = base64.b64decode(image_base64)
+    image = Image.open(BytesIO(image_data))
+    original_width, original_height = image.size
+    if original_width>300:
+        return image_base64
+    new_width = original_width + 300
+    scale = new_width / original_width
+    new_height = int(original_height * scale)
+    resized_image = image.resize((new_width, new_height), Image.LANCZOS)
+    buffer = BytesIO()
+    resized_image.save(buffer, format=image.format or 'PNG')
+    new_image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    return new_image_base64
+
+
+async def hourlyAnnouncement(servicedependencies:ServiceDependencies):
+    while True:
+        now = datetime.now()
+        next_hour = (now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))
+        diff=next_hour-now
+        seconds=diff.total_seconds()
+        await asyncio.sleep(seconds)
+        now_hour=(datetime.now()).hour
+        text=f"现在是北京时间{now_hour}点整,大家好,我是播报侠"
+        await servicedependencies.bot.api.post_group_msg(group_id=1032557008,text=text)
+        
+def get_image_size_from_base64(base64_str:str)->tuple[int,int]:
+    """计算图片的宽和高"""
+    image_data = base64.b64decode(base64_str)
+    with Image.open(BytesIO(image_data)) as img:
+        width, height = img.size
+        return width, height
 
 
 

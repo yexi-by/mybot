@@ -43,7 +43,7 @@ async def post_video(
             url = get_result.content.video_url
             return url
         elif get_result.status == "failed":
-            logger.error("视频生成失败!")
+            logger.error(f"视频生成失败！错误信息：{get_result}")
             return None
         else :
             logger.info("正在生成视频,请等待")

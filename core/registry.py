@@ -2,8 +2,10 @@
 # 标准库
 import asyncio
 import json
+import types
 from dataclasses import dataclass, field
 from typing import Dict, List
+
 
 # 第三方库
 import json5
@@ -40,6 +42,7 @@ class ServiceDependencies:
     novelai_api_lock: asyncio.Lock
     volcengine_api_lock:asyncio.Lock
     bot: BotClient
+    fal_client:types.ModuleType 
     proxy_client:httpx.AsyncClient
     fast_track_proxy:httpx.AsyncClient
     openai_llm: OpenAI_LLM = field(init=False)
