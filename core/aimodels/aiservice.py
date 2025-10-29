@@ -98,7 +98,7 @@ class AiService:
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"正在生成图片,请耐心等待片刻")
         if type=="novelai":
             if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="构建带有向量化动态词典的生图提示词失败!请重试")
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="向量召回失败!")
                 return True
             ai_response_json = await self.servicedependencies.openai_llm.fetch_json_from_ai_model(model_name=self.appconfig.llm_model_name,messages=image_messages)
             if not ai_response_json:

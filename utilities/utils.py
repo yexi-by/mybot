@@ -118,15 +118,16 @@ def store_image_base64_with_message_id_and_timestamp(
         del appconfig.imageIdBase64Map[oldest_key]
 
 def enlarge_image_base64(image_base64: str) -> str:
-    """将图片的宽+300"""
+    """扩展图片尺寸"""
     image_data = base64.b64decode(image_base64)
     image = Image.open(BytesIO(image_data))
     original_width, original_height = image.size
-    if original_width>300:
+    if original_width>300 and original_height>300:
         return image_base64
-    new_width = original_width + 300
-    scale = new_width / original_width
-    new_height = int(original_height * scale)
+    min_edge=min(original_width,original_height)
+    ratio = 350 / min_edge
+    new_width=int(original_width*ratio)
+    new_height=int(original_height*ratio)
     resized_image = image.resize((new_width, new_height), Image.LANCZOS)
     buffer = BytesIO()
     resized_image.save(buffer, format=image.format or 'PNG')

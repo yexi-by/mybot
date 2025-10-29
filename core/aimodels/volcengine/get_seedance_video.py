@@ -19,7 +19,7 @@ async def post_video(
                 #--duration 5：指定时长
                 #--camerafixed false：是否固定摄像机
                 #--watermark true：是否在成片上加“AI 生成”水印
-                "text":f"{prompt} --resolution 720p  --duration 5 --camerafixed false --watermark false"
+                "text":f"{prompt} --resolution 1080p  --duration 10 --camerafixed false --watermark false"
             }
         ]
     if image_base64:

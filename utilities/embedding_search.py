@@ -1,6 +1,7 @@
 # 标准库
 import json
 from pathlib import Path
+import asyncio
 from typing import Any, Dict, List, Optional, Union
 
 # 第三方库
@@ -27,6 +28,7 @@ class RAGSearchEnhancer:
             self.yaml_content: Dict[str, Any] = yaml.load(f, Loader=yaml.FullLoader)
     
     async def get_embedding_values(self, input_txt: List[str]) -> Optional[Dict[str, Any]]:
+        max_retries=5#重试5次
         url = "https://api.siliconflow.cn/v1/embeddings"
         payload = {
             "model": "Qwen/Qwen3-Embedding-8B",
@@ -36,12 +38,15 @@ class RAGSearchEnhancer:
             "Authorization": f"Bearer {self.embedded_model_api_key}",
             "Content-Type": "application/json"
         }
-        try:
-            response = await self.fast_track_proxy.post(url, json=payload, headers=headers)
-            response.raise_for_status()  # 如果请求失败 (例如 4xx 或 5xx)，则抛出异常
-            return response.json()
-        except httpx.RequestError:
-            return None
+        for attempt in range(max_retries):
+            try:
+                response = await self.fast_track_proxy.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                return response.json()
+            except httpx.RequestError:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+        return None
         
     async def query_most_similar_entries(self, query_text: str, top_k: int = 20) -> Optional[List[str]]:
         """
