@@ -9,7 +9,7 @@ from ncatbot.core import At, AtAll, MessageChain, Text
 from base import CharCaption
 
 
-def parse_llm_json_to_message_array(ai_response_json: str) -> MessageChain:
+def parse_llm_json_to_message_array(ai_response_json: str) ->tuple[MessageChain,bool] :
     """解析大语音模型的json文本并且构造MessageChain消息容器"""
     message_elements = []
 
@@ -26,7 +26,10 @@ def parse_llm_json_to_message_array(ai_response_json: str) -> MessageChain:
     if "AtAll" in response_data and response_data["AtAll"] is True:
         message_elements.append(AtAll())
 
-    return MessageChain(message_elements)
+    if "And_conversation_switch" in response_data:
+        and_conversation_switch=response_data["And_conversation_switch"]
+
+    return MessageChain(message_elements),and_conversation_switch
 
 def buildTextToImagePrompt(ai_response_json: str) -> Tuple[Optional[str], Optional[str], Optional[List[CharCaption]]]:
     """解析大语音模型的json文本并且构造文生图提示词"""

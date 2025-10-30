@@ -20,7 +20,7 @@ from utilities.my_logging import logger
 from base import ChatMessage, ImageData, UserIdDate
 from core.aimodels.ai_services.openAI_llm import OpenAI_LLM
 from utilities.embedding_search import RAGSearchEnhancer
-from config.setting import gemini_api_key, gemini_base_url,siliconflow_api_key
+from config.setting import gemini_api_key, gemini_base_url,siliconflow_api_key,deepseek_api_key,deepseek_base_url
 
 
 def _load_nano_banana_prompts():
@@ -46,12 +46,16 @@ class ServiceDependencies:
     proxy_client:httpx.AsyncClient
     fast_track_proxy:httpx.AsyncClient
     openai_llm: OpenAI_LLM = field(init=False)
-    openai_client: AsyncOpenAI=field(init=False)
-    rgasearchenhancer: RAGSearchEnhancer=field(init=False)
+    openai_client: AsyncOpenAI = field(init=False)
+    openai_client_deepseek: AsyncOpenAI = field(init=False)
+    openai_llm_deepseek: OpenAI_LLM = field(init=False)
+    rgasearchenhancer: RAGSearchEnhancer = field(init=False)
     
     def __post_init__(self):
         self.openai_client=AsyncOpenAI(api_key=gemini_api_key,base_url=gemini_base_url,http_client=self.proxy_client)
+        self.openai_client_deepseek=AsyncOpenAI(api_key=deepseek_api_key,base_url=deepseek_base_url,timeout=60)#deepseek在国内不需要系统代理
         self.openai_llm = OpenAI_LLM(client=self.openai_client)
+        self.openai_llm_deepseek=OpenAI_LLM(client=self.openai_client_deepseek)
         self.rgasearchenhancer=RAGSearchEnhancer(
             index_path="vector/vector.index",
             text_mapping_path="vector/text_mapping.json",
@@ -69,6 +73,7 @@ class AppConfig:
     groupChatKnowledgeBase: str
     drawing_system_prompt: str
     llm_model_name: str
+    deepseek_model_name:str
     novelai_api_key: str
     volcengine_model_name:str
     ai_mode_active: bool = True

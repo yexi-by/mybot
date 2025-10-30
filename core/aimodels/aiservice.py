@@ -100,7 +100,7 @@ class AiService:
             if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
                 await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="向量召回失败!")
                 return True
-            ai_response_json = await self.servicedependencies.openai_llm.fetch_json_from_ai_model(model_name=self.appconfig.llm_model_name,messages=image_messages)
+            ai_response_json = await self.servicedependencies.openai_llm_deepseek.fetch_json_from_ai_model(model_name=self.appconfig.deepseek_model_name,messages=image_messages)
             if not ai_response_json:
                 await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"错误消息:未知错误")
                 return True
@@ -513,6 +513,7 @@ class RealTimeAIResponse:
             return False
         if not checkMentionBehavior(msg=msg):
             return False
+        and_conversation_switch:bool=True#继续对话开关
         user_prompt=(
             f"消息发送者资料 - "
             f"QQ号: {getattr(msg.sender, 'user_id', '未知')}, "
@@ -529,30 +530,31 @@ class RealTimeAIResponse:
         if message_id in self.appconfig.imageIdBase64Map:
             image_base64_s=self.appconfig.imageIdBase64Map[message_id].base64
             self.appconfig.messages.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64_s}"}}]))
-        if ai_response_json:= await self.servicedependencies.openai_llm.fetch_json_from_ai_model(
-            model_name=self.appconfig.llm_model_name,
-            messages=self.appconfig.messages
-            ):
-            if ai_response_json.startswith("错误消息:"):
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
+        while and_conversation_switch:
+            if ai_response_json:= await self.servicedependencies.openai_llm.fetch_json_from_ai_model(
+                model_name=self.appconfig.llm_model_name,
+                messages=self.appconfig.messages
+                ):
+                if ai_response_json.startswith("错误消息:"):
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
+                    return True
+                message,and_conversation_switch=parse_llm_json_to_message_array(ai_response_json)
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
+                if image_base64:
+                    del self.appconfig.messages[-1]
+                if message_id in self.appconfig.imageIdBase64Map:
+                    del self.appconfig.messages[-1]
+                self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
+            else:
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="ai智能水群失败,群友呢?救一下啊")
                 return True
-            message=parse_llm_json_to_message_array(ai_response_json)
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
-            if image_base64:
-                del self.appconfig.messages[-1]
-            if message_id in self.appconfig.imageIdBase64Map:
-                del self.appconfig.messages[-1]
-            self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
-            if len(self.appconfig.messages) > 31: ## 限制对话历史长度，保留1条系统提示和15轮用户/助手对话（1 + 15*2 = 31）
-                system_prompt=self.appconfig.messages[0]
-                recent_messages = self.appconfig.messages[-6:]
-                self.appconfig.messages.clear()
-                self.appconfig.messages.append(system_prompt)
-                self.appconfig.messages.extend(recent_messages)
-            return True
-        else:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="ai智能水群失败,群友呢?救一下啊")
-            return False
+        if len(self.appconfig.messages) > 31: ## 限制对话历史长度，保留1条系统提示和15轮用户/助手对话（1 + 15*2 = 31）
+            system_prompt=self.appconfig.messages[0]
+            recent_messages = self.appconfig.messages[-6:]
+            self.appconfig.messages.clear()
+            self.appconfig.messages.append(system_prompt)
+            self.appconfig.messages.extend(recent_messages)
+        return True
     
 class OthersHandles:
     def __init__(

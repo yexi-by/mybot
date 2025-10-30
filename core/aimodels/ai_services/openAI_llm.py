@@ -36,6 +36,7 @@ class OpenAI_LLM:
             Text: Optional[str] = None
             At: Optional[List[int]] = None
             AtAll:Optional[bool] = None
+            And_conversation_switch:Optional[bool]=None#是否结束对话开关
             #绘图部分
             prompt: Optional[str] = None
             negative_prompt: Optional[str] = None
