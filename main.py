@@ -9,9 +9,10 @@ from google import genai
 from ncatbot.core import BotClient, GroupMessage
 from openai import AsyncOpenAI
 from volcenginesdkarkruntime import AsyncArk
+from tavily import AsyncTavilyClient
 
 # 本地模块
-from config.setting import gemini_api_key, gemini_base_url, siliconflow_api_key,system_proxies,volcengine_api_key,volcengine_base_url,fai_api_key
+from config.setting import gemini_api_key, gemini_base_url, siliconflow_api_key,system_proxies,volcengine_api_key,volcengine_base_url,fai_api_key,tavily_api_key
 from core.registry import ServiceDependencies
 from core.single_group_instance import setupGroupInstance
 from utilities.embedding_search import RAGSearchEnhancer
@@ -30,7 +31,8 @@ servicedependencies =ServiceDependencies(
     proxy_client=httpx.AsyncClient(proxy=system_proxies,trust_env=False,timeout=60.0),
     bot=BotClient(),
     fal_client=fal_client,
-    fast_track_proxy=httpx.AsyncClient(trust_env=False,timeout=15.0)#直连代理,主要用于国内服务
+    fast_track_proxy=httpx.AsyncClient(trust_env=False,timeout=15.0),#直连代理,主要用于国内服务
+    tavily_client=AsyncTavilyClient(api_key=tavily_api_key)
 )
 
 #async def handle_startup_message():

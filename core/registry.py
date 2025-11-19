@@ -14,10 +14,12 @@ from google import genai
 from ncatbot.core import BotClient
 from openai import AsyncOpenAI
 from volcenginesdkarkruntime import AsyncArk
+from tavily import AsyncTavilyClient
+from utilities.web_search import Web_search
 
 # 本地模块
 from utilities.my_logging import logger
-from base import ChatMessage, ImageData, UserIdDate
+from base import ChatMessage, ImageData, UserIdDate,ToolChatMessage
 from core.aimodels.ai_services.openAI_llm import OpenAI_LLM
 from utilities.embedding_search import RAGSearchEnhancer
 from config.setting import gemini_api_key, gemini_base_url,siliconflow_api_key,deepseek_api_key,deepseek_base_url
@@ -45,11 +47,13 @@ class ServiceDependencies:
     fal_client:types.ModuleType 
     proxy_client:httpx.AsyncClient
     fast_track_proxy:httpx.AsyncClient
+    tavily_client:AsyncTavilyClient
     openai_llm: OpenAI_LLM = field(init=False)
     openai_client: AsyncOpenAI = field(init=False)
     openai_client_deepseek: AsyncOpenAI = field(init=False)
     openai_llm_deepseek: OpenAI_LLM = field(init=False)
     rgasearchenhancer: RAGSearchEnhancer = field(init=False)
+    web_search:Web_search= field(init=False)
     
     def __post_init__(self):
         self.openai_client=AsyncOpenAI(api_key=gemini_api_key,base_url=gemini_base_url,http_client=self.proxy_client)
@@ -63,6 +67,7 @@ class ServiceDependencies:
             yaml_dictionary="vector/danbooru.yaml",
             fast_track_proxy=self.fast_track_proxy
         )
+        self.web_search=Web_search(client=self.tavily_client)
 
 
 
@@ -76,14 +81,16 @@ class AppConfig:
     deepseek_model_name:str
     novelai_api_key: str
     volcengine_model_name:str
+    openai_tools:list
     ai_mode_active: bool = True
     root_id:str="2172959822"
     imageIdBase64Map: Dict[str, ImageData] = field(default_factory=dict)#{唯一消息ID:{图片base64编码,时间}}
     userIdContentMap: Dict[str, dict] = field(default_factory=dict)#{userID:{text,类型}}
     help_texts:dict=field(default_factory=dict)#帮助信息
-    messages: List[ChatMessage] = field(init=False)
+    messages: List[ChatMessage|ToolChatMessage|dict] = field(init=False)
     image_messages: List[ChatMessage] = field(init=False)
     nano_banana_prompts: dict = field(init=False)
+
 
 
     def __post_init__(self):

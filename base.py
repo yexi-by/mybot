@@ -1,5 +1,5 @@
 # 标准库
-from typing import List, Literal,Any
+from typing import List, Literal,Any,Optional
 
 # 第三方库
 from pydantic import BaseModel
@@ -18,8 +18,14 @@ class ImageData(BaseModel):
     timestamp: float
 
 class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant", "developer"]
+    role: Literal["system", "user", "assistant", "developer","tool"]
     content: Any
+class ToolChatMessage(BaseModel):
+    role:str
+    tool_call_id:Any
+    content:Any
+
+
 
 class UserIdDate(BaseModel):
     """用来验证储存的用户ID(通常是qq号),以及请求类型和用户输入"""

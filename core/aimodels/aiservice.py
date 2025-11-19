@@ -4,7 +4,7 @@ import random
 import traceback
 import textwrap
 from pathlib import Path
-from typing import Any, Dict, cast,Literal,Optional
+from typing import Any, Dict, cast, List, Literal, Optional
 
 
 # 第三方库
@@ -13,7 +13,7 @@ from ncatbot.core import GroupMessage, Image, MessageChain,Video
 from pypinyin import Style, pinyin
 
 # 本地模块
-from base import ChatMessage, UserIdDate
+from base import ChatMessage, UserIdDate, ToolChatMessage
 from core.registry import AppConfig, ServiceDependencies
 from utilities.json_parser import buildTextToImagePrompt, parse_llm_json_to_message_array
 from utilities.my_logging import logger
@@ -75,8 +75,8 @@ class AiService:
             return image_base64
     async def insert_vectorized_data_dynamically(
             self,
-            user_input_text
-        ):
+            user_input_text: str
+        ) -> List[ChatMessage | ToolChatMessage | dict] | None:
         """动态插入向量化数据到系统提示词并且构建image_messages"""
         if not (best_matches:=await self.servicedependencies.rgasearchenhancer.get_vector_query_results(user_input=user_input_text)):
             return None
@@ -85,7 +85,7 @@ class AiService:
         system_prompt=self.appconfig.image_messages[0].content
         image_messages=[ChatMessage(role="system", content=f"{system_prompt}\n\n以下是向量动态插入字典对照表,请甄别后参考\n{result_collection}")]
         image_messages.append(ChatMessage(role="user", content=user_input_text))
-        return image_messages
+        return cast(List[ChatMessage | ToolChatMessage | dict], image_messages)
     
     async def process_user_input_to_novlai_image(
             self,
@@ -96,48 +96,51 @@ class AiService:
         ):
         """集成了novelai和gemini和火山即梦4.0和fai的高度集成抽象封装,一键生图!"""
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"正在生成图片,请耐心等待片刻")
-        if type=="novelai":
-            if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="向量召回失败!")
-                return True
-            ai_response_json = await self.servicedependencies.openai_llm_deepseek.fetch_json_from_ai_model(model_name=self.appconfig.deepseek_model_name,messages=image_messages)
-            if not ai_response_json:
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"错误消息:未知错误")
-                return True
-            if ai_response_json.startswith("错误消息:"):
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
-                return True
-            image_base64 = await self.generate_image(
-                ai_response_json=ai_response_json,
-                reference_image_base64=reference_image_base64
-            )
-        elif type=="gemini"and reference_image_base64:
-            image_base64=await text_and_image_to_image(
-                client=self.servicedependencies.gemini_client,
-                prompt=user_input_text,
-                image_base64=reference_image_base64,
-                model_name="gemini-2.5-flash-image",
-            )
-        elif type=="volcengine_即梦4.0":
-            image_base64=await get_volcengine_image(
-                client=self.servicedependencies.volcengine_client,
-                prompt=user_input_text,
-                iamgebase64=reference_image_base64,
-            )
-        elif type=="fai":
-            if reference_image_base64:
-                image_size=get_image_size_from_base64(base64_str=reference_image_base64)
-            image_base64=await qqbot_get_image(
-                fal_client=self.servicedependencies.fal_client,
-                prompt=user_input_text,
-                image_base64s=reference_image_base64,
-                image_size=image_size              
-            )
-        else:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="数据列表错误,我一会来修")
+        try:
+            if type=="novelai":
+                if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="向量召回失败!")
+                    return True
+                ai_response_json = await self.servicedependencies.openai_llm_deepseek.fetch_json_from_ai_model(model_name=self.appconfig.deepseek_model_name,messages=image_messages)
+                if not ai_response_json:
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"错误消息:未知错误")
+                    return True
+                if ai_response_json.startswith("错误消息:"):
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
+                    return True
+                image_base64 = await self.generate_image(
+                    ai_response_json=ai_response_json,
+                    reference_image_base64=reference_image_base64
+                )
+            elif type=="gemini"and reference_image_base64:
+                image_base64=await text_and_image_to_image(
+                    client=self.servicedependencies.gemini_client,
+                    prompt=user_input_text,
+                    image_base64=reference_image_base64,
+                    model_name="gemini-2.5-flash-image",
+                )
+            elif type=="volcengine_即梦4.0":
+                image_base64=await get_volcengine_image(
+                    client=self.servicedependencies.volcengine_client,
+                    prompt=user_input_text,
+                    iamgebase64=reference_image_base64,
+                )
+            elif type=="fai":
+                if reference_image_base64:
+                    image_size=get_image_size_from_base64(base64_str=reference_image_base64)
+                image_base64=await qqbot_get_image(
+                    fal_client=self.servicedependencies.fal_client,
+                    prompt=user_input_text,
+                    image_base64s=reference_image_base64,
+                    image_size=image_size              
+                )          
+        except Exception as e:
+            message=[{"role": "system", "content": "你是一个报错翻译助手,需要将报错翻译分析转化为正常人可以理解的报错消息,你只需要输出报错消息就可以,尽量简洁"},{"role": "user", "content": "{e}"}]
+            ai_response = await self.servicedependencies.openai_llm_deepseek.deepseek_get_response(model_name=self.appconfig.deepseek_model_name,messages=message)
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response)
             return True
         if not image_base64:
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="图片生成失败")
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="error:图片base64编码为空")
             return True
         image_MessageChain=MessageChain([Image(f"base64://{image_base64}")])
         await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="图片生成完成")
@@ -513,7 +516,6 @@ class RealTimeAIResponse:
             return False
         if not checkMentionBehavior(msg=msg):
             return False
-        and_conversation_switch:bool=True#继续对话开关
         user_prompt=(
             f"消息发送者资料 - "
             f"QQ号: {getattr(msg.sender, 'user_id', '未知')}, "
@@ -521,34 +523,57 @@ class RealTimeAIResponse:
             f"群昵称: '{getattr(msg.sender, 'card', '未知')}', "
             f"消息内容: '{msg.raw_message}'"
         )
+        tool_outputs = []#临时网络搜索数据
+        image_input=[]#临时图片数据
+
         self.appconfig.messages.append(ChatMessage(role="user", content=user_prompt))
         image_base64=await is_image_message_return_base64(msg=msg,client=self.servicedependencies.fast_track_proxy)
         if image_base64:
             store_image_base64_with_message_id_and_timestamp(appconfig=self.appconfig,base64_image=image_base64,message_id=msg.message_id)
-            self.appconfig.messages.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64}"}}]))
+            image_input.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64}"}}]))
         message_id=is_reply_and_get_message_id(msg=msg)
         if message_id in self.appconfig.imageIdBase64Map:
             image_base64_s=self.appconfig.imageIdBase64Map[message_id].base64
-            self.appconfig.messages.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64_s}"}}]))
-        while and_conversation_switch:
+            image_input.append(ChatMessage(role="user",content=[{ "type": "image_url", "image_url":{"url":  f"data:image/jpeg;base64,{image_base64_s}"}}]))
+
+        while True:
             if ai_response_json:= await self.servicedependencies.openai_llm.fetch_json_from_ai_model(
                 model_name=self.appconfig.llm_model_name,
-                messages=self.appconfig.messages
+                messages=self.appconfig.messages+image_input+tool_outputs,
                 ):
                 if ai_response_json.startswith("错误消息:"):
                     await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
                     return True
-                message,and_conversation_switch=parse_llm_json_to_message_array(ai_response_json)
-                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
-                if image_base64:
-                    del self.appconfig.messages[-1]
-                if message_id in self.appconfig.imageIdBase64Map:
-                    del self.appconfig.messages[-1]
-                self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
+                message,other_parameter=parse_llm_json_to_message_array(ai_response_json)
+                web_search_switch=other_parameter["Web_search"]["web_search_switch"]
+                if other_parameter["metaprogram"]["is_enabled"]:
+                    code=other_parameter["metaprogram"]["code_snippet"]
+                    forbidden = ['import os', 'from os', '__import__("os")', "__import__('os')"]
+                    if any(k in code for k in forbidden):
+                        await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="我草牛魔的,执行危险代码是吧")
+                        return True
+                    loc = {} 
+                    try:
+                        exec(code,{},loc)
+                        last_key=list(loc.keys())[-1]
+                        last_value=loc[last_key]
+                        tool_outputs.append(ChatMessage(role="user", content=f"这是函数执行的结果:\n{last_key}的值是{last_value}"))
+                    except Exception as e:
+                        tool_outputs.append(ChatMessage(role="user", content=f"代码执行出错了,错误信息{e}"))
+                        continue
+                if web_search_switch:
+                    query=other_parameter["Web_search"]["web_search_query"]
+                    web_search_results=await self.servicedependencies.web_search.get_web_search(query=query)
+                    tool_outputs.append(ChatMessage(role="user", content=f"以下是网络搜索结果:\n{web_search_results}"))
+
+                if not web_search_switch and not other_parameter["metaprogram"]["is_enabled"]:
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,rtf=message)
+                    self.appconfig.messages.append(ChatMessage(role="assistant", content=ai_response_json))
+                    break
             else:
                 await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="ai智能水群失败,群友呢?救一下啊")
                 return True
-        if len(self.appconfig.messages) > 31: ## 限制对话历史长度，保留1条系统提示和15轮用户/助手对话（1 + 15*2 = 31）
+        if len(self.appconfig.messages) > 50: ## 限制对话历史长度
             system_prompt=self.appconfig.messages[0]
             recent_messages = self.appconfig.messages[-6:]
             self.appconfig.messages.clear()

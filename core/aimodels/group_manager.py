@@ -75,6 +75,10 @@ class AiGroupManager:
             # 智能水群 - 兜底处理
             self.realTimeAIResponse.handle_group_message_response
         ]
+        qq_number=getattr(msg.sender, 'user_id', '未知')
+        黑民单=[2568895943]
+        if int(qq_number)in 黑民单:
+            return True
         for handle in handles:
             result = await handle(msg=msg)
             if result:

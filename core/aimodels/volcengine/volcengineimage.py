@@ -1,5 +1,4 @@
 from volcenginesdkarkruntime import AsyncArk 
-
 async def get_volcengine_image(
         client:AsyncArk,
         prompt:str,
