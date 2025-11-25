@@ -101,7 +101,7 @@ class AiService:
                 if not(image_messages := await self.insert_vectorized_data_dynamically(user_input_text=user_input_text)):
                     await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="向量召回失败!")
                     return True
-                ai_response_json = await self.servicedependencies.openai_llm_deepseek.fetch_json_from_ai_model(model_name=self.appconfig.deepseek_model_name,messages=image_messages)
+                ai_response_json = await self.servicedependencies.openai_llm.fetch_json_from_ai_model(model_name=self.appconfig.llm_model_name,messages=image_messages)
                 if not ai_response_json:
                     await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=f"错误消息:未知错误")
                     return True
@@ -117,8 +117,16 @@ class AiService:
                     client=self.servicedependencies.gemini_client,
                     prompt=user_input_text,
                     image_base64=reference_image_base64,
-                    model_name="gemini-2.5-flash-image",
+                    model_name="gemini-3-pro-image-preview",
                 )
+            elif type=="gemini_pro"and  reference_image_base64:
+                image_base64=await text_and_image_to_image(
+                    client=self.servicedependencies.gemini_client,
+                    prompt=user_input_text,
+                    image_base64=reference_image_base64,
+                    model_name="gemini-3-pro-image-preview",
+                )
+
             elif type=="volcengine_即梦4.0":
                 image_base64=await get_volcengine_image(
                     client=self.servicedependencies.volcengine_client,
@@ -135,9 +143,7 @@ class AiService:
                     image_size=image_size              
                 )          
         except Exception as e:
-            message=[{"role": "system", "content": "你是一个报错翻译助手,需要将报错翻译分析转化为正常人可以理解的报错消息,你只需要输出报错消息就可以,尽量简洁"},{"role": "user", "content": "{e}"}]
-            ai_response = await self.servicedependencies.openai_llm_deepseek.deepseek_get_response(model_name=self.appconfig.deepseek_model_name,messages=message)
-            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response)
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=str(e))
             return True
         if not image_base64:
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text="error:图片base64编码为空")
@@ -246,6 +252,7 @@ class GroupChatTriggerWords:
         image_keword="参考生图"
         video_keyword="参考图片生成视频"
         volcengine_image_keyword="1参考生图"
+        gemini_3_image_keyword="3参考生图"
         if starts_with_keyword(msg=msg,keyword=image_keword):
             user_input_text=get_text_segment(msg=msg,offset=len(f"/{image_keword}"))
             if not user_input_text:
@@ -276,6 +283,14 @@ class GroupChatTriggerWords:
               await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
               return True 
             self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"fai"}
+            await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
+            return True
+        elif starts_with_keyword(msg=msg,keyword=gemini_3_image_keyword):
+            user_input_text=get_text_segment(msg=msg,offset=len(f"/{gemini_3_image_keyword}"))
+            if not user_input_text:
+                await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="提示词为空,请重新输入")
+                return True 
+            self.appconfig.userIdContentMap[str(msg.user_id)]={"user_input_text":user_input_text,"type":"gemini_pro"}
             await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text="请发送图片")
             return True
         user_input = get_text_segment(msg=msg,offset=1)
@@ -544,7 +559,11 @@ class RealTimeAIResponse:
                 if ai_response_json.startswith("错误消息:"):
                     await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,at=msg.user_id,text=ai_response_json)
                     return True
-                message,other_parameter=parse_llm_json_to_message_array(ai_response_json)
+                try:
+                    message,other_parameter=parse_llm_json_to_message_array(ai_response_json)
+                except Exception as e:
+                    await self.servicedependencies.bot.api.post_group_msg(group_id=msg.group_id,text=str(e))
+                    return True
                 web_search_switch=other_parameter["Web_search"]["web_search_switch"]
                 if other_parameter["metaprogram"]["is_enabled"]:
                     code=other_parameter["metaprogram"]["code_snippet"]

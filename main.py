@@ -18,6 +18,7 @@ from core.single_group_instance import setupGroupInstance
 from utilities.embedding_search import RAGSearchEnhancer
 from utilities.my_logging import logger
 from utilities.utils import hourlyAnnouncement
+from utilities.unban import unban_user
 
 os.environ["FAL_KEY"] = fai_api_key
 my_proxy={
@@ -48,6 +49,11 @@ async def handle_group_message(msg: GroupMessage):
         servicedependencies=servicedependencies
     ):
         await aigroupmanager.handle_group_message(msg=msg)
+@servicedependencies.bot.notice_event()
+async def on_notice(msg):
+    logger.info(msg)
+    await unban_user(msg=msg,bot=servicedependencies.bot)
+
 if __name__ == "__main__":
     servicedependencies.bot.run(bt_uin=742654932)
 
